@@ -104,3 +104,9 @@ export const updateExpense = async (expense) => {
 export const getMonthlyTrend = async (year) => {
   return apiCall(`/expenses/monthly-trend?year=${year}`);
 };
+
+export const deleteRecurringExpense = async (id) => {
+  return apiCall(`/expenses/recurring/${id}`, {
+    method: 'DELETE',
+  });
+};

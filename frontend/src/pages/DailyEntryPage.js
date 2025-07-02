@@ -79,7 +79,9 @@ const DailyEntryPage = () => {
     isRecurring: false,
     recurrenceType: 'MONTHLY',
     recurrenceInterval: 1,
-    recurrenceEndDate: ''
+    recurrenceEndDate: '',
+    recurrenceEndType: 'endDate',
+    numOccurrences: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -101,7 +103,9 @@ const DailyEntryPage = () => {
       isRecurring: false,
       recurrenceType: 'MONTHLY',
       recurrenceInterval: 1,
-      recurrenceEndDate: ''
+      recurrenceEndDate: '',
+      recurrenceEndType: 'endDate',
+      numOccurrences: '',
     });
     console.log('FORCED RESET: Form date set to', today);
   }, []);
@@ -117,6 +121,10 @@ const DailyEntryPage = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (type === 'radio') {
+      setForm({ ...form, [name]: value });
+      return;
+    }
     setForm({
       ...form,
       [name]: type === 'checkbox' ? checked : value
@@ -152,7 +160,9 @@ const DailyEntryPage = () => {
       isRecurring: false,
       recurrenceType: 'MONTHLY',
       recurrenceInterval: 1,
-      recurrenceEndDate: ''
+      recurrenceEndDate: '',
+      recurrenceEndType: 'endDate',
+      numOccurrences: '',
     });
   };
 
@@ -175,7 +185,8 @@ const DailyEntryPage = () => {
           ...expenseData,
           recurrenceType: form.recurrenceType,
           recurrenceInterval: parseInt(form.recurrenceInterval),
-          recurrenceEndDate: form.recurrenceEndDate || null
+          recurrenceEndDate: form.recurrenceEndType === 'endDate' ? form.recurrenceEndDate : null,
+          numOccurrences: form.recurrenceEndType === 'occurrences' ? parseInt(form.numOccurrences) : null
         };
         await addRecurringExpense(recurringData);
         setMessage({ type: 'success', text: 'Recurring expense added successfully!' });
@@ -259,6 +270,70 @@ const DailyEntryPage = () => {
             Recurring Expense
           </label>
         </div>
+        {form.isRecurring && (
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Recurring Frequency:</label>
+            <select
+              name="recurrenceType"
+              value={form.recurrenceType}
+              onChange={handleChange}
+              style={{ ...inputStyle, marginBottom: 0 }}
+            >
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="QUARTERLY">Quarterly</option>
+              <option value="SEMI_ANNUALLY">Semi-Annually</option>
+            </select>
+            <div style={{ marginTop: 10, marginBottom: 0 }}>
+              <label style={{ marginRight: 16 }}>
+                <input
+                  type="radio"
+                  name="recurrenceEndType"
+                  value="endDate"
+                  checked={form.recurrenceEndType === 'endDate'}
+                  onChange={handleChange}
+                  style={{ marginRight: 6 }}
+                />
+                End Date
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="recurrenceEndType"
+                  value="occurrences"
+                  checked={form.recurrenceEndType === 'occurrences'}
+                  onChange={handleChange}
+                  style={{ marginRight: 6 }}
+                />
+                Number of Occurrences
+              </label>
+            </div>
+            {form.recurrenceEndType === 'endDate' && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="date"
+                  name="recurrenceEndDate"
+                  value={form.recurrenceEndDate}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
+              </div>
+            )}
+            {form.recurrenceEndType === 'occurrences' && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="number"
+                  name="numOccurrences"
+                  min="1"
+                  value={form.numOccurrences}
+                  onChange={handleChange}
+                  placeholder="Number of Occurrences"
+                  style={inputStyle}
+                />
+              </div>
+            )}
+          </div>
+        )}
         <button type="submit" disabled={loading} style={buttonStyle}>
           {loading ? 'Adding...' : 'Add Expense'}
         </button>

@@ -6,7 +6,9 @@ import {
   getYearToDateSummary, 
   deleteExpense,
   getCategories,
-  getMonthlyTrend
+  getMonthlyTrend,
+  getRecurringExpenses,
+  deleteRecurringExpense
 } from '../api';
 import { Pie, Bar, Line } from 'react-chartjs-2';
 import {
@@ -22,6 +24,8 @@ import {
   LineElement
 } from 'chart.js';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { FaCalendarAlt, FaWallet, FaLightbulb } from 'react-icons/fa';
+import './DashboardPage.css';
 
 ChartJS.register(
   ArcElement,
@@ -45,8 +49,41 @@ const cardStyle = {
   marginBottom: 24,
   minWidth: 0,
   cursor: 'pointer',
-  transition: 'box-shadow 0.2s',
+  transition: 'box-shadow 0.2s, transform 0.2s',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
+
+const cardHoverStyle = {
+  boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
+  transform: 'scale(1.03)',
+};
+
+// Define a color palette
+const CATEGORY_COLORS = [
+  '#1976d2', // Blue
+  '#d32f2f', // Red
+  '#388e3c', // Green
+  '#fbc02d', // Yellow
+  '#7b1fa2', // Purple
+  '#f57c00', // Orange
+  '#0288d1', // Light Blue
+  '#c2185b', // Pink
+  '#388e3c', // Dark Green
+  '#455a64', // Blue Grey
+  '#8d6e63', // Brown
+  '#cddc39', // Lime
+  '#0097a7', // Teal
+  '#e64a19', // Deep Orange
+  '#5d4037', // Dark Brown
+  '#1976d2', // Blue (repeat for overflow)
+  '#d32f2f', // Red (repeat for overflow)
+  '#388e3c', // Green (repeat for overflow)
+  '#fbc02d', // Yellow (repeat for overflow)
+  '#7b1fa2', // Purple (repeat for overflow)
+];
 
 const DashboardPage = () => {
   console.log('DashboardPage: Today is', new Date().toLocaleDateString('en-CA'));
@@ -77,6 +114,21 @@ const DashboardPage = () => {
   const [filteredResults, setFilteredResults] = useState([]);
   const [resultsOpen, setResultsOpen] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const [hoveredCard, setHoveredCard] = useState(null);
+
+  const [recurringExpenses, setRecurringExpenses] = useState([]);
+  const [recurringLoading, setRecurringLoading] = useState(false);
+  const [recurringError, setRecurringError] = useState(null);
+
+  // Map category name to a color using a hash for stability
+  const getCategoryColor = (cat) => {
+    let hash = 0;
+    for (let i = 0; i < cat.length; i++) {
+      hash = cat.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length];
+  };
 
   // On mount, restore filters from query params if present
   useEffect(() => {
@@ -207,6 +259,9 @@ const DashboardPage = () => {
     return match;
   });
 
+  // Before rendering, sort filteredExpenses by date descending
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+
   // Handler for card/chart clicks
   const handleCardClick = (type, params = {}) => {
     // Always pass current filters in query
@@ -265,31 +320,24 @@ const DashboardPage = () => {
           }
           subcategoryMap[expense.subCategory] += expense.amount;
         });
-
       const labels = Object.keys(subcategoryMap);
       const data = Object.values(subcategoryMap);
-      const colors = [
-        '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab',
-        '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43'
-      ];
-
       return {
         labels,
         datasets: [{
           data,
-          backgroundColor: data.map((_, i) => colors[i % colors.length]),
+          backgroundColor: labels.map((sub, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
           borderWidth: 1
         }]
       };
     } else {
       // Show all categories
+      const labels = Object.keys(categorySummary);
       return {
-        labels: Object.keys(categorySummary),
+        labels,
         datasets: [{
           data: Object.values(categorySummary),
-          backgroundColor: [
-            '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'
-          ],
+          backgroundColor: labels.map(cat => getCategoryColor(cat)),
           borderWidth: 1
         }]
       };
@@ -310,17 +358,13 @@ const DashboardPage = () => {
           subcategoryMap[expense.subCategory] += expense.amount;
         });
       const labels = Object.keys(subcategoryMap);
-      const colors = [
-        '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab',
-        '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43'
-      ];
       return {
         labels,
         datasets: [
           {
             label: selectedCategory,
             data: Object.values(subcategoryMap),
-            backgroundColor: colors.slice(0, labels.length),
+            backgroundColor: labels.map((sub, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
             borderRadius: 6
           }
         ]
@@ -329,26 +373,17 @@ const DashboardPage = () => {
       // Show all categories, one dataset per category
       const categories = Object.keys(categorySummary);
       const labels = categories;
-      const colors = [
-        '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'
-      ];
       return {
         labels,
-        datasets: categories.map((cat, i) => ({
+        datasets: categories.map((cat) => ({
           label: cat,
           data: labels.map(l => (l === cat ? categorySummary[cat] : 0)),
-          backgroundColor: colors[i % colors.length],
+          backgroundColor: getCategoryColor(cat),
           borderRadius: 6
         }))
       };
     }
   }, [expenses, categorySummary, selectedCategory]);
-
-  // Helper for custom legend
-  const allCategories = Object.keys(categorySummary);
-  const legendColors = [
-    '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'
-  ];
 
   // Calculate Top Category by Spend
   const categoryTotals = {};
@@ -362,7 +397,7 @@ const DashboardPage = () => {
   const mostFrequentCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
   const mostFrequentCount = categoryCounts[mostFrequentCategory] || 0;
 
-  // Calculate % Change from Last Month
+  // Calculate Absolute Change from Last Month
   const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
   const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
   const [prevMonthExpenses, setPrevMonthExpenses] = useState([]);
@@ -377,7 +412,37 @@ const DashboardPage = () => {
   }, [currentMonth, currentYear]);
   const prevTotal = prevMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
   const thisTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const percentChange = prevTotal === 0 ? 0 : ((thisTotal - prevTotal) / prevTotal) * 100;
+  const absoluteChange = thisTotal - prevTotal;
+
+  useEffect(() => {
+    fetchRecurringExpenses();
+  }, []);
+
+  const fetchRecurringExpenses = async () => {
+    setRecurringLoading(true);
+    setRecurringError(null);
+    try {
+      const data = await getRecurringExpenses();
+      setRecurringExpenses(data);
+    } catch (e) {
+      setRecurringError('Failed to load recurring expenses.');
+    } finally {
+      setRecurringLoading(false);
+    }
+  };
+
+  const handleStopRecurring = async (id) => {
+    if (!window.confirm('Stop this recurring expense?')) return;
+    setRecurringLoading(true);
+    try {
+      await deleteRecurringExpense(id);
+      await fetchRecurringExpenses();
+    } catch (e) {
+      alert('Failed to stop recurring expense.');
+    } finally {
+      setRecurringLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -517,16 +582,27 @@ const DashboardPage = () => {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24, marginBottom: 32 }}>
-        <div style={{ ...cardStyle, textAlign: 'center', cursor: 'pointer' }} onClick={() => handleCardClick('year', { year: currentYear })}>
-          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 18 }}>Year-to-Date</h3>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: '#333' }}>{rupee} {yearToDateTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+      <div className="dashboard-summary-grid">
+        <div style={{ ...cardStyle, ...(hoveredCard === 'year' ? cardHoverStyle : {}), textAlign: 'center' }}
+          onMouseEnter={() => setHoveredCard('year')}
+          onMouseLeave={() => setHoveredCard(null)}
+          onClick={() => handleCardClick('year', { year: currentYear })}>
+          <FaCalendarAlt size={32} color="#007bff" style={{ marginBottom: 8 }} />
+          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Year-to-Date</h3>
+          <p style={{ margin: 0, fontSize: 36, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>{rupee} {yearToDateTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
         </div>
-        <div style={{ ...cardStyle, textAlign: 'center', cursor: 'pointer' }} onClick={() => handleCardClick('month', { year: currentYear, month: currentMonth })}>
-          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 18 }}>This Month</h3>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: '#333' }}>{rupee} {monthlyTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+        <div style={{ ...cardStyle, ...(hoveredCard === 'month' ? cardHoverStyle : {}), textAlign: 'center' }}
+          onMouseEnter={() => setHoveredCard('month')}
+          onMouseLeave={() => setHoveredCard(null)}
+          onClick={() => handleCardClick('month', { year: currentYear, month: currentMonth })}>
+          <FaWallet size={32} color="#007bff" style={{ marginBottom: 8 }} />
+          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>This Month</h3>
+          <p style={{ margin: 0, fontSize: 36, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>{rupee} {monthlyTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
         </div>
-        <div style={{ ...cardStyle, textAlign: 'center' }}>
+        <div style={{ ...cardStyle, ...(hoveredCard === 'insights' ? cardHoverStyle : {}), textAlign: 'center', cursor: 'default' }}
+          onMouseEnter={() => setHoveredCard('insights')}
+          onMouseLeave={() => setHoveredCard(null)}>
+          <FaLightbulb size={32} color="#007bff" style={{ marginBottom: 8 }} />
           <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 18 }}>Insights</h3>
           <div style={{ fontSize: 16, margin: '8px 0' }}>
             <b>Top Category:</b> {topCategory} <br />
@@ -538,8 +614,8 @@ const DashboardPage = () => {
           </div>
           <div style={{ fontSize: 16, margin: '8px 0' }}>
             <b>Change from Last Month:</b> <br />
-            <span style={{ color: percentChange > 0 ? 'green' : percentChange < 0 ? 'red' : '#333' }}>
-              {percentChange > 0 ? '+' : ''}{percentChange.toFixed(1)}%
+            <span style={{ color: absoluteChange > 0 ? 'green' : absoluteChange < 0 ? 'red' : '#333' }}>
+              {absoluteChange > 0 ? '+' : ''}{rupee} {Math.abs(absoluteChange).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -557,7 +633,7 @@ const DashboardPage = () => {
               </span>
             )}
           </h3>
-          <div style={{ height: 300 }}>
+          <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 300 }}>
             <Pie data={pieData} options={{
               maintainAspectRatio: false,
               plugins: { legend: { display: false } },
@@ -587,11 +663,11 @@ const DashboardPage = () => {
           </div>
           {/* Custom Legend for Pie Chart */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0' }}>
-            {!selectedCategory && allCategories.map((cat, i) => (
+            {!selectedCategory && Object.keys(categorySummary).map((cat, i) => (
               <button
                 key={cat}
                 style={{
-                  background: selectedCategory === cat ? '#007bff' : legendColors[i % legendColors.length],
+                  background: selectedCategory === cat ? '#007bff' : getCategoryColor(cat),
                   color: '#fff',
                   border: 'none',
                   borderRadius: 4,
@@ -616,7 +692,7 @@ const DashboardPage = () => {
               </span>
             )}
           </h3>
-          <div style={{ height: 300 }}>
+          <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 300 }}>
             <Bar data={barData} options={{
               maintainAspectRatio: false,
               plugins: { legend: { display: false } },
@@ -673,11 +749,11 @@ const DashboardPage = () => {
           </div>
           {/* Custom Legend for Bar Chart */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0' }}>
-            {!selectedCategory && allCategories.map((cat, i) => (
+            {!selectedCategory && Object.keys(categorySummary).map((cat, i) => (
               <button
                 key={cat}
                 style={{
-                  background: selectedCategory === cat ? '#007bff' : legendColors[i % legendColors.length],
+                  background: selectedCategory === cat ? '#007bff' : getCategoryColor(cat),
                   color: '#fff',
                   border: 'none',
                   borderRadius: 4,
@@ -697,68 +773,96 @@ const DashboardPage = () => {
       {/* Monthly Trend Chart */}
       <div style={{ ...cardStyle, marginBottom: 32 }}>
         <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Monthly Trend</h3>
-        <div style={{ height: 300 }}>
-          <Bar data={monthlyTrendData} options={monthlyTrendOptions} />
+        <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 400 }}>
+          <Bar data={monthlyTrendData} options={{
+            ...monthlyTrendOptions,
+            maintainAspectRatio: false,
+            layout: { padding: { left: 30, right: 30, top: 20, bottom: 20 } },
+            responsive: true,
+          }} />
         </div>
       </div>
 
       {/* Recent Expenses */}
       <div style={{ ...cardStyle, marginBottom: 32 }}>
         <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Recent Expenses</h3>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
-                <th style={{ textAlign: 'left', padding: 10 }}>Date</th>
-                <th style={{ textAlign: 'left', padding: 10 }}>Category</th>
-                <th style={{ textAlign: 'left', padding: 10 }}>Subcategory</th>
-                <th style={{ textAlign: 'left', padding: 10 }}>Description</th>
-                <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
-                <th style={{ textAlign: 'center', padding: 10 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredExpenses.map(expense => (
-                editId === expense.id ? (
-                  <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0', background: '#f3f8ff' }}>
-                    <td style={{ padding: 10 }}><input type="date" name="date" value={editForm.date} onChange={handleEditChange} /></td>
-                    <td style={{ padding: 10 }}>
-                      <select name="category" value={editForm.category} onChange={handleEditChange}>
-                        {categories.map(cat => (
-                          <option key={cat.name} value={cat.name}>{cat.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      <select name="subCategory" value={editForm.subCategory} onChange={handleEditChange}>
-                        {(categories.find(c => c.name === editForm.category)?.subCategories || []).map(sub => (
-                          <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: 10 }}><input type="text" name="description" value={editForm.description} onChange={handleEditChange} /></td>
-                    <td style={{ padding: 10, textAlign: 'right' }}><input type="number" name="amount" value={editForm.amount} onChange={handleEditChange} min="0" step="0.01" /></td>
-                    <td style={{ padding: 10, textAlign: 'center' }}>
-                      <button onClick={handleEditSave} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Save</button>
-                      <button onClick={handleEditCancel} style={{ padding: '4px 8px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: 10 }}>{expense.date}</td>
-                    <td style={{ padding: 10 }}>{expense.category}</td>
-                    <td style={{ padding: 10 }}>{expense.subCategory}</td>
-                    <td style={{ padding: 10 }}>{expense.description}</td>
-                    <td style={{ padding: 10, textAlign: 'right' }}>{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: 10, textAlign: 'center' }}>
-                      <button onClick={() => handleEdit(expense)} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                      <button onClick={() => handleDelete(expense.id)} style={{ padding: '4px 8px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
-                    </td>
-                  </tr>
-                )
-              ))}
-            </tbody>
-          </table>
+        {/* Table for desktop */}
+        <div className="recent-expenses-table">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
+                  <th style={{ textAlign: 'left', padding: 10 }}>Date</th>
+                  <th style={{ textAlign: 'left', padding: 10 }}>Category</th>
+                  <th style={{ textAlign: 'left', padding: 10 }}>Subcategory</th>
+                  <th style={{ textAlign: 'left', padding: 10 }}>Description</th>
+                  <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
+                  <th style={{ textAlign: 'center', padding: 10 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedExpenses.map(expense => (
+                  editId === expense.id ? (
+                    <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0', background: '#f3f8ff' }}>
+                      <td style={{ padding: 10 }}><input type="date" name="date" value={editForm.date} onChange={handleEditChange} /></td>
+                      <td style={{ padding: 10 }}>
+                        <select name="category" value={editForm.category} onChange={handleEditChange}>
+                          {categories.map(cat => (
+                            <option key={cat.name} value={cat.name}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: 10 }}>
+                        <select name="subCategory" value={editForm.subCategory} onChange={handleEditChange}>
+                          {(categories.find(c => c.name === editForm.category)?.subCategories || []).map(sub => (
+                            <option key={sub} value={sub}>{sub}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: 10 }}><input type="text" name="description" value={editForm.description} onChange={handleEditChange} /></td>
+                      <td style={{ padding: 10, textAlign: 'right' }}><input type="number" name="amount" value={editForm.amount} onChange={handleEditChange} min="0" step="0.01" /></td>
+                      <td style={{ padding: 10, textAlign: 'center' }}>
+                        <button onClick={handleEditSave} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Save</button>
+                        <button onClick={handleEditCancel} style={{ padding: '4px 8px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: 10 }}>{expense.date}</td>
+                      <td style={{ padding: 10 }}>{expense.category}</td>
+                      <td style={{ padding: 10 }}>{expense.subCategory}</td>
+                      <td style={{ padding: 10 }}>{expense.description}</td>
+                      <td style={{ padding: 10, textAlign: 'right' }}>{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: 10, textAlign: 'center' }}>
+                        <button onClick={() => handleEdit(expense)} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                        <button onClick={() => handleDelete(expense.id)} style={{ padding: '4px 8px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                      </td>
+                    </tr>
+                  )
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Card/List view for mobile */}
+        <div className="recent-expenses-cards">
+          {sortedExpenses.map(expense => (
+            <div className="expense-card" key={expense.id}>
+              <div className="expense-card-row">
+                <span className="expense-card-date">{expense.date}</span>
+                <span className="expense-card-amount">{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="expense-card-row">
+                <span className="expense-card-category">{expense.category}</span>
+                <span className="expense-card-subcategory">{expense.subCategory}</span>
+              </div>
+              <div className="expense-card-description">{expense.description}</div>
+              <div className="expense-card-actions">
+                <button onClick={() => handleEdit(expense)} className="expense-edit-btn">Edit</button>
+                <button onClick={() => handleDelete(expense.id)} className="expense-delete-btn">Delete</button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -817,6 +921,56 @@ const DashboardPage = () => {
                 </table>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Active Recurring Expenses */}
+      <div style={{ ...cardStyle, marginBottom: 32 }}>
+        <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Active Recurring Expenses</h3>
+        {recurringLoading ? (
+          <div>Loading...</div>
+        ) : recurringError ? (
+          <div style={{ color: 'red' }}>{recurringError}</div>
+        ) : recurringExpenses.length === 0 ? (
+          <div style={{ color: '#888' }}>No active recurring expenses.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
+                  <th style={{ textAlign: 'left', padding: 10 }}>Expense</th>
+                  <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
+                  <th style={{ textAlign: 'center', padding: 10 }}>Frequency</th>
+                  <th style={{ textAlign: 'center', padding: 10 }}>End Date</th>
+                  <th style={{ textAlign: 'center', padding: 10 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recurringExpenses.map(exp => (
+                  <tr key={exp.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: 10 }}>
+                      <span style={{ fontWeight: 600, color: '#1976d2' }}>{exp.category}</span>
+                      {exp.subCategory && <span style={{ color: '#7b1fa2', fontWeight: 500 }}> ({exp.subCategory})</span>}
+                    </td>
+                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 600, color: '#222' }}>{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: 10, textAlign: 'center', color: '#555' }}>
+                      {exp.recurrenceType || 'Monthly'}
+                      {exp.recurrenceInterval && exp.recurrenceType === 'CUSTOM' ? ` every ${exp.recurrenceInterval} days` : ''}
+                    </td>
+                    <td style={{ padding: 10, textAlign: 'center', color: '#888' }}>{exp.recurrenceEndDate || '-'}</td>
+                    <td style={{ padding: 10, textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleStopRecurring(exp.id)}
+                        style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}
+                      >
+                        Stop
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

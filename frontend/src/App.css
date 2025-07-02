@@ -36,3 +36,23 @@
     transform: rotate(360deg);
   }
 }
+
+/* Responsive header/navbar */
+@media (max-width: 700px) {
+  nav > div {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  nav h1 {
+    font-size: 1.3rem !important;
+    margin-bottom: 8px !important;
+  }
+  nav a {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 0 8px 0 !important;
+    font-size: 1rem !important;
+    text-align: left !important;
+  }
+}
