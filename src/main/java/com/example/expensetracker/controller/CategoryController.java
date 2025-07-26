@@ -33,4 +33,9 @@ public class CategoryController {
     public Category addSubCategory(@RequestBody Map<String, String> body) {
         return categoryService.addSubCategory(body.get("categoryName"), body.get("subCategory"));
     }
+
+    @DeleteMapping("/{name}")
+    public void deleteCategoryByName(@PathVariable String name) {
+        categoryService.deleteCategoryByName(name);
+    }
 } 

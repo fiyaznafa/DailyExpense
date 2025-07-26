@@ -110,3 +110,10 @@ export const deleteRecurringExpense = async (id) => {
     method: 'DELETE',
   });
 };
+
+export const importExpenses = async (expenses) => {
+  return apiCall('/expenses/import', {
+    method: 'POST',
+    body: JSON.stringify(expenses),
+  });
+};

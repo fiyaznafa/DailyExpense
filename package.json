@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "chartjs-plugin-datalabels": "^2.2.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "react-router-dom": "^7.6.3"
   }
 }

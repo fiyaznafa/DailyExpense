@@ -26,6 +26,8 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaCalendarAlt, FaWallet, FaLightbulb } from 'react-icons/fa';
 import './DashboardPage.css';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 ChartJS.register(
   ArcElement,
@@ -259,8 +261,8 @@ const DashboardPage = () => {
     return match;
   });
 
-  // Before rendering, sort filteredExpenses by date descending
-  const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Before rendering, sort filteredExpenses by date descending and limit to latest 10
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
 
   // Handler for card/chart clicks
   const handleCardClick = (type, params = {}) => {
@@ -444,6 +446,22 @@ const DashboardPage = () => {
     }
   };
 
+  const exportDashboardReport = async () => {
+    const input = document.getElementById('dashboard-report-section');
+    if (!input) return;
+    const canvas = await html2canvas(input, { scale: 1 });
+    const imgData = canvas.toDataURL('image/jpeg', 0.7); // JPEG, 70% quality
+    const pdfWidth = input.offsetWidth * 0.7;
+    const pdfHeight = input.offsetHeight * 0.7;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [pdfWidth, pdfHeight]
+    });
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save('dashboard-report.pdf');
+  };
+
   if (loading) {
     return (
       <div style={{ padding: 20, textAlign: 'center' }}>
@@ -581,340 +599,415 @@ const DashboardPage = () => {
         </label>
       </div>
 
-      {/* Summary Cards */}
-      <div className="dashboard-summary-grid">
-        <div style={{ ...cardStyle, ...(hoveredCard === 'year' ? cardHoverStyle : {}), textAlign: 'center' }}
-          onMouseEnter={() => setHoveredCard('year')}
-          onMouseLeave={() => setHoveredCard(null)}
-          onClick={() => handleCardClick('year', { year: currentYear })}>
-          <FaCalendarAlt size={32} color="#007bff" style={{ marginBottom: 8 }} />
-          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Year-to-Date</h3>
-          <p style={{ margin: 0, fontSize: 36, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>{rupee} {yearToDateTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-        </div>
-        <div style={{ ...cardStyle, ...(hoveredCard === 'month' ? cardHoverStyle : {}), textAlign: 'center' }}
-          onMouseEnter={() => setHoveredCard('month')}
-          onMouseLeave={() => setHoveredCard(null)}
-          onClick={() => handleCardClick('month', { year: currentYear, month: currentMonth })}>
-          <FaWallet size={32} color="#007bff" style={{ marginBottom: 8 }} />
-          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>This Month</h3>
-          <p style={{ margin: 0, fontSize: 36, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>{rupee} {monthlyTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-        </div>
-        <div style={{ ...cardStyle, ...(hoveredCard === 'insights' ? cardHoverStyle : {}), textAlign: 'center', cursor: 'default' }}
-          onMouseEnter={() => setHoveredCard('insights')}
-          onMouseLeave={() => setHoveredCard(null)}>
-          <FaLightbulb size={32} color="#007bff" style={{ marginBottom: 8 }} />
-          <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 18 }}>Insights</h3>
-          <div style={{ fontSize: 16, margin: '8px 0' }}>
-            <b>Top Category:</b> {topCategory} <br />
-            <span style={{ color: '#333' }}>{rupee} {topCategoryAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+      <div>
+        <button onClick={exportDashboardReport} style={{ margin: 16, padding: '8px 18px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 500, fontSize: 15, cursor: 'pointer' }}>
+          Download Report as PDF
+        </button>
+        <div id="dashboard-report-section">
+          {/* Summary Cards */}
+          <div className="dashboard-summary-grid">
+            <div style={{ ...cardStyle, ...(hoveredCard === 'year' ? cardHoverStyle : {}), textAlign: 'center' }}
+              onMouseEnter={() => setHoveredCard('year')}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => handleCardClick('year', { year: currentYear })}>
+              <FaCalendarAlt size={32} color="#007bff" style={{ marginBottom: 8 }} />
+              <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Year-to-Date</h3>
+              <p style={{ margin: 0, fontSize: 36, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>{rupee} {yearToDateTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div style={{ ...cardStyle, ...(hoveredCard === 'month' ? cardHoverStyle : {}), textAlign: 'center' }}
+              onMouseEnter={() => setHoveredCard('month')}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => handleCardClick('month', { year: currentYear, month: currentMonth })}>
+              <FaWallet size={32} color="#007bff" style={{ marginBottom: 8 }} />
+              <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>This Month</h3>
+              <p style={{ margin: 0, fontSize: 36, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>{rupee} {monthlyTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div style={{ ...cardStyle, ...(hoveredCard === 'insights' ? cardHoverStyle : {}), textAlign: 'center', cursor: 'default' }}
+              onMouseEnter={() => setHoveredCard('insights')}
+              onMouseLeave={() => setHoveredCard(null)}>
+              <FaLightbulb size={32} color="#007bff" style={{ marginBottom: 8 }} />
+              <h3 style={{ margin: '0 0 8px 0', color: '#007bff', fontSize: 18 }}>Insights</h3>
+              <div style={{ fontSize: 16, margin: '8px 0' }}>
+                <b>Top Category:</b> {topCategory} <br />
+                <span style={{ color: '#333' }}>{rupee} {topCategoryAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div style={{ fontSize: 16, margin: '8px 0' }}>
+                <b>Most Frequent:</b> {mostFrequentCategory} <br />
+                <span style={{ color: '#333' }}>{mostFrequentCount} transactions</span>
+              </div>
+              <div style={{ fontSize: 16, margin: '8px 0' }}>
+                <b>Change from Last Month:</b> <br />
+                <span style={{ color: absoluteChange > 0 ? 'green' : absoluteChange < 0 ? 'red' : '#333' }}>
+                  {absoluteChange > 0 ? '+' : ''}{rupee} {Math.abs(absoluteChange).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: 16, margin: '8px 0' }}>
-            <b>Most Frequent:</b> {mostFrequentCategory} <br />
-            <span style={{ color: '#333' }}>{mostFrequentCount} transactions</span>
-          </div>
-          <div style={{ fontSize: 16, margin: '8px 0' }}>
-            <b>Change from Last Month:</b> <br />
-            <span style={{ color: absoluteChange > 0 ? 'green' : absoluteChange < 0 ? 'red' : '#333' }}>
-              {absoluteChange > 0 ? '+' : ''}{rupee} {Math.abs(absoluteChange).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 24, marginBottom: 32 }}>
-        <div style={{ ...cardStyle }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>
-            Category Distribution
-            {selectedCategory && (
-              <span style={{ fontSize: 14, color: '#007bff', marginLeft: 12 }}>
-                - {selectedCategory}
-                <button onClick={() => setSelectedCategory(null)} style={{ marginLeft: 8, padding: '2px 8px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Back to All</button>
-              </span>
-            )}
-          </h3>
-          <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 300 }}>
-            <Pie data={pieData} options={{
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              onClick: (e, elements, chart) => {
-                if (elements && elements.length > 0) {
-                  const idx = elements[0].index;
-                  const label = chart.data.labels[idx];
-                  if (selectedCategory) {
-                    // Viewing subcategories: navigate to detail page for subcategory
-                    handleCardClick('category', {
-                      year: currentYear,
-                      month: currentMonth,
-                      category: selectedCategory,
-                      subcategory: label
-                    });
-                  } else {
-                    // Viewing categories: navigate to detail page for category
-                    handleCardClick('category', {
-                      year: currentYear,
-                      month: currentMonth,
-                      category: label
-                    });
-                  }
-                }
-              }
-            }} />
-          </div>
-          {/* Custom Legend for Pie Chart */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0' }}>
-            {!selectedCategory && Object.keys(categorySummary).map((cat, i) => (
-              <button
-                key={cat}
-                style={{
-                  background: selectedCategory === cat ? '#007bff' : getCategoryColor(cat),
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '4px 12px',
-                  cursor: 'pointer',
-                  fontWeight: 500
-                }}
-                onClick={() => setSelectedCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{ ...cardStyle }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>
-            Monthly Summary
-            {selectedCategory && (
-              <span style={{ fontSize: 14, color: '#007bff', marginLeft: 12 }}>
-                - {selectedCategory}
-                <button onClick={() => setSelectedCategory(null)} style={{ marginLeft: 8, padding: '2px 8px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Back to All</button>
-              </span>
-            )}
-          </h3>
-          <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 300 }}>
-            <Bar data={barData} options={{
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              layout: { padding: { left: 10, right: 10, top: 10, bottom: 10 } },
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const label = context.label || '';
-                    const value = context.raw;
-                    return `${label}: ${rupee} ${value.toLocaleDateString('en-IN', { minimumFractionDigits: 2 })}`;
-                  }
-                }
-              },
-              scales: {
-                x: {
-                  offset: true,
-                  ticks: {
-                    maxRotation: 45,
-                    minRotation: 30,
-                    font: { size: selectedCategory ? 10 : 12 }
-                  }
-                },
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    callback: value => `₹${value.toLocaleString('en-IN')}`,
-                    font: { size: 11 }
-                  }
-                }
-              },
-              onClick: (e, elements, chart) => {
-                if (elements && elements.length > 0) {
-                  const idx = elements[0].index;
-                  const label = chart.data.labels[idx];
-                  if (selectedCategory) {
-                    // Viewing subcategories: navigate to detail page for subcategory
-                    handleCardClick('category', {
-                      year: currentYear,
-                      month: currentMonth,
-                      category: selectedCategory,
-                      subcategory: label
-                    });
-                  } else {
-                    // Viewing categories: navigate to detail page for category
-                    handleCardClick('category', {
-                      year: currentYear,
-                      month: currentMonth,
-                      category: label
-                    });
-                  }
-                }
-              }
-            }} />
-          </div>
-          {/* Custom Legend for Bar Chart */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0' }}>
-            {!selectedCategory && Object.keys(categorySummary).map((cat, i) => (
-              <button
-                key={cat}
-                style={{
-                  background: selectedCategory === cat ? '#007bff' : getCategoryColor(cat),
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '4px 12px',
-                  cursor: 'pointer',
-                  fontWeight: 500
-                }}
-                onClick={() => setSelectedCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Monthly Trend Chart */}
-      <div style={{ ...cardStyle, marginBottom: 32 }}>
-        <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Monthly Trend</h3>
-        <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 400 }}>
-          <Bar data={monthlyTrendData} options={{
-            ...monthlyTrendOptions,
-            maintainAspectRatio: false,
-            layout: { padding: { left: 30, right: 30, top: 20, bottom: 20 } },
-            responsive: true,
-          }} />
-        </div>
-      </div>
-
-      {/* Recent Expenses */}
-      <div style={{ ...cardStyle, marginBottom: 32 }}>
-        <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Recent Expenses</h3>
-        {/* Table for desktop */}
-        <div className="recent-expenses-table">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
-                  <th style={{ textAlign: 'left', padding: 10 }}>Date</th>
-                  <th style={{ textAlign: 'left', padding: 10 }}>Category</th>
-                  <th style={{ textAlign: 'left', padding: 10 }}>Subcategory</th>
-                  <th style={{ textAlign: 'left', padding: 10 }}>Description</th>
-                  <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
-                  <th style={{ textAlign: 'center', padding: 10 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedExpenses.map(expense => (
-                  editId === expense.id ? (
-                    <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0', background: '#f3f8ff' }}>
-                      <td style={{ padding: 10 }}><input type="date" name="date" value={editForm.date} onChange={handleEditChange} /></td>
-                      <td style={{ padding: 10 }}>
-                        <select name="category" value={editForm.category} onChange={handleEditChange}>
-                          {categories.map(cat => (
-                            <option key={cat.name} value={cat.name}>{cat.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: 10 }}>
-                        <select name="subCategory" value={editForm.subCategory} onChange={handleEditChange}>
-                          {(categories.find(c => c.name === editForm.category)?.subCategories || []).map(sub => (
-                            <option key={sub} value={sub}>{sub}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: 10 }}><input type="text" name="description" value={editForm.description} onChange={handleEditChange} /></td>
-                      <td style={{ padding: 10, textAlign: 'right' }}><input type="number" name="amount" value={editForm.amount} onChange={handleEditChange} min="0" step="0.01" /></td>
-                      <td style={{ padding: 10, textAlign: 'center' }}>
-                        <button onClick={handleEditSave} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Save</button>
-                        <button onClick={handleEditCancel} style={{ padding: '4px 8px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
-                      </td>
-                    </tr>
-                  ) : (
-                    <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: 10 }}>{expense.date}</td>
-                      <td style={{ padding: 10 }}>{expense.category}</td>
-                      <td style={{ padding: 10 }}>{expense.subCategory}</td>
-                      <td style={{ padding: 10 }}>{expense.description}</td>
-                      <td style={{ padding: 10, textAlign: 'right' }}>{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td style={{ padding: 10, textAlign: 'center' }}>
-                        <button onClick={() => handleEdit(expense)} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                        <button onClick={() => handleDelete(expense.id)} style={{ padding: '4px 8px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
-                      </td>
-                    </tr>
-                  )
+          {/* Charts */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 24, marginBottom: 32 }}>
+            <div style={{ ...cardStyle }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>
+                Category Distribution
+                {selectedCategory && (
+                  <span style={{ fontSize: 14, color: '#007bff', marginLeft: 12 }}>
+                    - {selectedCategory}
+                    <button onClick={() => setSelectedCategory(null)} style={{ marginLeft: 8, padding: '2px 8px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Back to All</button>
+                  </span>
+                )}
+              </h3>
+              <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 300 }}>
+                {pieData && pieData.labels && pieData.labels.length > 0 && pieData.datasets && pieData.datasets[0].data.length > 0 ? (
+                  <Pie
+                    data={pieData}
+                    options={{
+                      maintainAspectRatio: false,
+                      plugins: {
+                        datalabels: {
+                          display: (context) => {
+                            const value = context.dataset.data[context.dataIndex];
+                            return value != null && value !== 0;
+                          },
+                          color: '#fff',
+                          font: { weight: 'bold', size: 14 },
+                          formatter: (value, context) => {
+                            const label = context.chart.data.labels?.[context.dataIndex] || '';
+                            if (value == null || value === 0) return '';
+                            return `${label}\n₹${value.toLocaleString('en-IN')}`;
+                          },
+                          anchor: 'center',
+                          align: 'center',
+                        },
+                        legend: { display: false }
+                      },
+                      onClick: (e, elements, chart) => {
+                        if (elements && elements.length > 0) {
+                          const idx = elements[0].index;
+                          const label = chart.data.labels[idx];
+                          handleCardClick('category', {
+                            year: currentYear,
+                            month: currentMonth,
+                            category: label
+                          });
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+                    No data to display.
+                  </div>
+                )}
+              </div>
+              {/* Custom Legend for Pie Chart */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0' }}>
+                {!selectedCategory && Object.keys(categorySummary).map((cat, i) => (
+                  <button
+                    key={cat}
+                    style={{
+                      background: selectedCategory === cat ? '#007bff' : getCategoryColor(cat),
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '4px 12px',
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat}
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+            <div style={{ ...cardStyle }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>
+                Monthly Summary
+                {selectedCategory && (
+                  <span style={{ fontSize: 14, color: '#007bff', marginLeft: 12 }}>
+                    - {selectedCategory}
+                    <button onClick={() => setSelectedCategory(null)} style={{ marginLeft: 8, padding: '2px 8px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Back to All</button>
+                  </span>
+                )}
+              </h3>
+              <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 300 }}>
+                <Bar
+                  data={barData}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    layout: { padding: { left: 10, right: 10, top: 10, bottom: 10 } },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label || '';
+                          const value = context.raw;
+                          return `${label}: ${rupee} ${value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                        }
+                      }
+                    },
+                    scales: {
+                      x: {
+                        offset: true,
+                        ticks: {
+                          maxRotation: 45,
+                          minRotation: 30,
+                          font: { size: selectedCategory ? 10 : 12 }
+                        }
+                      },
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          callback: value => `₹${value.toLocaleString('en-IN')}`,
+                          font: { size: 11 }
+                        }
+                      }
+                    },
+                    onClick: (e, elements, chart) => {
+                      if (elements && elements.length > 0) {
+                        const idx = elements[0].index;
+                        const label = chart.data.labels[idx];
+                        if (selectedCategory) {
+                          handleCardClick('category', {
+                            year: currentYear,
+                            month: currentMonth,
+                            category: selectedCategory,
+                            subcategory: label
+                          });
+                        } else {
+                          handleCardClick('category', {
+                            year: currentYear,
+                            month: currentMonth,
+                            category: label
+                          });
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+              {/* Custom Legend for Bar Chart */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0' }}>
+                {!selectedCategory && Object.keys(categorySummary).map((cat, i) => (
+                  <button
+                    key={cat}
+                    style={{
+                      background: selectedCategory === cat ? '#007bff' : getCategoryColor(cat),
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '4px 12px',
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-        {/* Card/List view for mobile */}
-        <div className="recent-expenses-cards">
-          {sortedExpenses.map(expense => (
-            <div className="expense-card" key={expense.id}>
-              <div className="expense-card-row">
-                <span className="expense-card-date">{expense.date}</span>
-                <span className="expense-card-amount">{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="expense-card-row">
-                <span className="expense-card-category">{expense.category}</span>
-                <span className="expense-card-subcategory">{expense.subCategory}</span>
-              </div>
-              <div className="expense-card-description">{expense.description}</div>
-              <div className="expense-card-actions">
-                <button onClick={() => handleEdit(expense)} className="expense-edit-btn">Edit</button>
-                <button onClick={() => handleDelete(expense.id)} className="expense-delete-btn">Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div style={{ ...cardStyle, marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          <label style={{ fontWeight: 500 }}>Category:
-            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ marginLeft: 8, padding: 6, borderRadius: 4, border: '1px solid #ccc' }}>
-              <option value="">All</option>
-              {categories.map(cat => (
-                <option key={cat.name} value={cat.name}>{cat.name}</option>
-              ))}
-            </select>
-          </label>
-          <label style={{ fontWeight: 500 }}>Start Date:
-            <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} style={{ marginLeft: 8, padding: 6, borderRadius: 4, border: '1px solid #ccc' }} />
-          </label>
-          <label style={{ fontWeight: 500 }}>End Date:
-            <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} style={{ marginLeft: 8, padding: 6, borderRadius: 4, border: '1px solid #ccc' }} />
-          </label>
-          <button onClick={handleRefresh} style={{ marginLeft: 12, padding: '8px 18px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 500, fontSize: 15, cursor: 'pointer' }}>Refresh</button>
-        </div>
-        
-        {/* Results Section */}
-        {filteredResults.length > 0 && (
-          <div style={{ borderTop: '1px solid #eaeaea', paddingTop: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: 12 }} onClick={() => setResultsOpen(o => !o)}>
-              <span style={{ fontWeight: 600, fontSize: 16, color: '#007bff', marginRight: 12 }}>
-                {resultsOpen ? '▼' : '►'} Results ({filteredResults.length})
-              </span>
-              <span style={{ color: '#888', fontSize: 13 }}>(Click to {resultsOpen ? 'collapse' : 'expand'})</span>
+          {/* Monthly Trend Chart */}
+          <div style={{ ...cardStyle, marginBottom: 32 }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Monthly Trend</h3>
+            <div style={{ width: '100%', minWidth: 0, overflowX: 'auto', height: 400 }}>
+              <Bar data={monthlyTrendData} options={{
+                ...monthlyTrendOptions,
+                maintainAspectRatio: false,
+                layout: { padding: { left: 30, right: 30, top: 20, bottom: 20 } },
+                responsive: true,
+              }} />
             </div>
-            {resultsOpen && (
+          </div>
+
+          {/* Recent Expenses */}
+          <div style={{ ...cardStyle, marginBottom: 32 }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Recent Expenses</h3>
+            {/* Table for desktop */}
+            <div className="recent-expenses-table">
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Date</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Category</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Subcategory</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Description</th>
-                      <th style={{ textAlign: 'right', padding: 8 }}>Amount ({rupee})</th>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Date</th>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Category</th>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Subcategory</th>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Description</th>
+                      <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
+                      <th style={{ textAlign: 'center', padding: 10 }} className="table-actions-col">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredResults.map(expense => (
-                      <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ padding: 8 }}>{expense.date}</td>
-                        <td style={{ padding: 8 }}>{expense.category}</td>
-                        <td style={{ padding: 8 }}>{expense.subCategory}</td>
-                        <td style={{ padding: 8 }}>{expense.description}</td>
-                        <td style={{ padding: 8, textAlign: 'right' }}>{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                    {sortedExpenses.map(expense => (
+                      editId === expense.id ? (
+                        <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0', background: '#f3f8ff' }}>
+                          <td style={{ padding: 10 }}><input type="date" name="date" value={editForm.date} onChange={handleEditChange} className="table-edit-input" /></td>
+                          <td style={{ padding: 10 }}>
+                            <select name="category" value={editForm.category} onChange={handleEditChange} className="table-edit-input">
+                              {categories.map(cat => (
+                                <option key={cat.name} value={cat.name}>{cat.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ padding: 10 }}>
+                            <select name="subCategory" value={editForm.subCategory} onChange={handleEditChange} className="table-edit-input">
+                              {(categories.find(c => c.name === editForm.category)?.subCategories || []).map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ padding: 10 }}><input type="text" name="description" value={editForm.description} onChange={handleEditChange} className="table-edit-input description" /></td>
+                          <td style={{ padding: 10, textAlign: 'right' }}><input type="number" name="amount" value={editForm.amount} onChange={handleEditChange} min="0" step="0.01" className="table-edit-input" /></td>
+                          <td style={{ padding: 10, textAlign: 'center' }} className="table-actions-col">
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
+                              <button onClick={handleEditSave} style={{ marginRight: 0, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Save</button>
+                              <button onClick={handleEditCancel} style={{ padding: '4px 8px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <td style={{ padding: 10 }}>{new Date(expense.date).toLocaleDateString('en-CA')}</td>
+                          <td style={{ padding: 10 }}>{expense.category}</td>
+                          <td style={{ padding: 10 }}>{expense.subCategory}</td>
+                          <td style={{ padding: 10 }}>{expense.description}</td>
+                          <td style={{ padding: 10, textAlign: 'right' }}>{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td style={{ padding: 10, textAlign: 'center' }}>
+                            <button onClick={() => handleEdit(expense)} style={{ marginRight: 8, padding: '4px 8px', background: '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                            <button onClick={() => handleDelete(expense.id)} style={{ padding: '4px 8px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                          </td>
+                        </tr>
+                      )
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {/* Card/List view for mobile */}
+            <div className="recent-expenses-cards">
+              {sortedExpenses.map(expense => (
+                <div className="expense-card" key={expense.id}>
+                  <div className="expense-card-row">
+                    <span className="expense-card-date">{new Date(expense.date).toLocaleDateString('en-CA')}</span>
+                    <span className="expense-card-amount">{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="expense-card-row">
+                    <span className="expense-card-category">{expense.category}</span>
+                    <span className="expense-card-subcategory">{expense.subCategory}</span>
+                  </div>
+                  <div className="expense-card-description">{expense.description}</div>
+                  <div className="expense-card-actions">
+                    <button onClick={() => handleEdit(expense)} className="expense-edit-btn">Edit</button>
+                    <button onClick={() => handleDelete(expense.id)} className="expense-delete-btn">Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div style={{ ...cardStyle, marginBottom: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              <label style={{ fontWeight: 500 }}>Category:
+                <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ marginLeft: 8, padding: 6, borderRadius: 4, border: '1px solid #ccc' }}>
+                  <option value="">All</option>
+                  {categories.map(cat => (
+                    <option key={cat.name} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ fontWeight: 500 }}>Start Date:
+                <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} style={{ marginLeft: 8, padding: 6, borderRadius: 4, border: '1px solid #ccc' }} />
+              </label>
+              <label style={{ fontWeight: 500 }}>End Date:
+                <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} style={{ marginLeft: 8, padding: 6, borderRadius: 4, border: '1px solid #ccc' }} />
+              </label>
+              <button onClick={handleRefresh} style={{ marginLeft: 12, padding: '8px 18px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 500, fontSize: 15, cursor: 'pointer' }}>Refresh</button>
+            </div>
+            
+            {/* Results Section */}
+            {filteredResults.length > 0 && (
+              <div style={{ borderTop: '1px solid #eaeaea', paddingTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: 12 }} onClick={() => setResultsOpen(o => !o)}>
+                  <span style={{ fontWeight: 600, fontSize: 16, color: '#007bff', marginRight: 12 }}>
+                    {resultsOpen ? '▼' : '►'} Results ({filteredResults.length})
+                  </span>
+                  <span style={{ color: '#888', fontSize: 13 }}>(Click to {resultsOpen ? 'collapse' : 'expand'})</span>
+                </div>
+                {resultsOpen && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
+                          <th style={{ textAlign: 'left', padding: 8 }}>Date</th>
+                          <th style={{ textAlign: 'left', padding: 8 }}>Category</th>
+                          <th style={{ textAlign: 'left', padding: 8 }}>Subcategory</th>
+                          <th style={{ textAlign: 'left', padding: 8 }}>Description</th>
+                          <th style={{ textAlign: 'right', padding: 8 }}>Amount ({rupee})</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredResults.map(expense => (
+                          <tr key={expense.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: 8 }}>{new Date(expense.date).toLocaleDateString('en-CA')}</td>
+                            <td style={{ padding: 8 }}>{expense.category}</td>
+                            <td style={{ padding: 8 }}>{expense.subCategory}</td>
+                            <td style={{ padding: 8 }}>{expense.description}</td>
+                            <td style={{ padding: 8, textAlign: 'right' }}>{rupee} {expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Active Recurring Expenses */}
+          <div style={{ ...cardStyle, marginBottom: 32 }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Active Recurring Expenses</h3>
+            {recurringLoading ? (
+              <div>Loading...</div>
+            ) : recurringError ? (
+              <div style={{ color: 'red' }}>{recurringError}</div>
+            ) : recurringExpenses.length === 0 ? (
+              <div style={{ color: '#888' }}>No active recurring expenses.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Expense</th>
+                      <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
+                      <th style={{ textAlign: 'center', padding: 10 }}>Frequency</th>
+                      <th style={{ textAlign: 'center', padding: 10 }}>End Date</th>
+                      <th style={{ textAlign: 'center', padding: 10 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recurringExpenses.map(exp => (
+                      <tr key={exp.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: 10 }}>
+                          <span style={{ fontWeight: 600, color: '#1976d2' }}>{exp.category}</span>
+                          {exp.subCategory && <span style={{ color: '#7b1fa2', fontWeight: 500 }}> ({exp.subCategory})</span>}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'right', fontWeight: 600, color: '#222' }}>{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: 10, textAlign: 'center', color: '#555' }}>
+                          {exp.recurrenceType || 'Monthly'}
+                          {exp.recurrenceInterval && exp.recurrenceType === 'CUSTOM' ? ` every ${exp.recurrenceInterval} days` : ''}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', color: '#888' }}>{exp.recurrenceEndDate || '-'}</td>
+                        <td style={{ padding: 10, textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleStopRecurring(exp.id)}
+                            style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}
+                          >
+                            Stop
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -922,57 +1015,7 @@ const DashboardPage = () => {
               </div>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Active Recurring Expenses */}
-      <div style={{ ...cardStyle, marginBottom: 32 }}>
-        <h3 style={{ margin: '0 0 16px 0', color: '#333', fontSize: 18 }}>Active Recurring Expenses</h3>
-        {recurringLoading ? (
-          <div>Loading...</div>
-        ) : recurringError ? (
-          <div style={{ color: 'red' }}>{recurringError}</div>
-        ) : recurringExpenses.length === 0 ? (
-          <div style={{ color: '#888' }}>No active recurring expenses.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f8fafc' }}>
-                  <th style={{ textAlign: 'left', padding: 10 }}>Expense</th>
-                  <th style={{ textAlign: 'right', padding: 10 }}>Amount ({rupee})</th>
-                  <th style={{ textAlign: 'center', padding: 10 }}>Frequency</th>
-                  <th style={{ textAlign: 'center', padding: 10 }}>End Date</th>
-                  <th style={{ textAlign: 'center', padding: 10 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recurringExpenses.map(exp => (
-                  <tr key={exp.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: 10 }}>
-                      <span style={{ fontWeight: 600, color: '#1976d2' }}>{exp.category}</span>
-                      {exp.subCategory && <span style={{ color: '#7b1fa2', fontWeight: 500 }}> ({exp.subCategory})</span>}
-                    </td>
-                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 600, color: '#222' }}>{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: 10, textAlign: 'center', color: '#555' }}>
-                      {exp.recurrenceType || 'Monthly'}
-                      {exp.recurrenceInterval && exp.recurrenceType === 'CUSTOM' ? ` every ${exp.recurrenceInterval} days` : ''}
-                    </td>
-                    <td style={{ padding: 10, textAlign: 'center', color: '#888' }}>{exp.recurrenceEndDate || '-'}</td>
-                    <td style={{ padding: 10, textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleStopRecurring(exp.id)}
-                        style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}
-                      >
-                        Stop
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

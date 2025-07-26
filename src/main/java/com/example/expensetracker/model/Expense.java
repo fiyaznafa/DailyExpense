@@ -2,10 +2,16 @@ package com.example.expensetracker.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.Data;
 
 @Entity
 @Data
+@Table(
+    uniqueConstraints = @UniqueConstraint(
+        columnNames = {"date", "category", "sub_category", "amount", "description"}
+    )
+)
 public class Expense {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

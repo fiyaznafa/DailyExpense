@@ -39,4 +39,21 @@ public class CategoryService {
         }
         return category;
     }
+
+    public void deleteCategoryByName(String name) {
+        categoryRepository.findByName(name).ifPresent(categoryRepository::delete);
+    }
+
+    public boolean removeSubCategory(String categoryName, String subCategory) {
+        Optional<Category> categoryOpt = categoryRepository.findByName(categoryName);
+        if (categoryOpt.isPresent()) {
+            Category category = categoryOpt.get();
+            boolean removed = category.getSubCategories().remove(subCategory);
+            if (removed) {
+                categoryRepository.save(category);
+                return true;
+            }
+        }
+        return false;
+    }
 } 

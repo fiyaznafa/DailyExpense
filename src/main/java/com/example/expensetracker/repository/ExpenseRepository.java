@@ -34,4 +34,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
     // Find all expenses generated from a recurring template
     List<Expense> findByParentExpenseId(Long parentExpenseId);
+
+    // Find a duplicate expense by all unique fields
+    @Query("SELECT e FROM Expense e WHERE e.date = :date AND e.category = :category AND e.subCategory = :subCategory AND e.amount = :amount AND e.description = :description")
+    Expense findDuplicate(@Param("date") LocalDate date, @Param("category") String category, @Param("subCategory") String subCategory, @Param("amount") double amount, @Param("description") String description);
 } 

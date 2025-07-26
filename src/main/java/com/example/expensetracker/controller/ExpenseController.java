@@ -106,4 +106,10 @@ public class ExpenseController {
     public List<Double> getMonthlyTrend(@RequestParam int year) {
         return expenseService.getMonthlyTrend(year);
     }
+
+    // Bulk import endpoint
+    @PostMapping("/expenses/import")
+    public ExpenseService.ImportSummary importExpenses(@RequestBody List<Expense> expenses) {
+        return expenseService.addExpensesWithSummary(expenses);
+    }
 } 

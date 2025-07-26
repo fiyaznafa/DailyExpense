@@ -20,9 +20,57 @@ public class ExpenseService {
         this.expenseRepository = expenseRepository;
     }
 
-    // Add a new expense
+    // Add a new expense, return null if duplicate
     public Expense addExpense(Expense expense) {
+        Expense duplicate = expenseRepository.findDuplicate(
+            expense.getDate(),
+            expense.getCategory(),
+            expense.getSubCategory(),
+            expense.getAmount(),
+            expense.getDescription()
+        );
+        if (duplicate != null) {
+            return null; // Duplicate found
+        }
         return expenseRepository.save(expense);
+    }
+
+    // Add multiple expenses, return summary
+    public ImportSummary addExpensesWithSummary(List<Expense> expenses) {
+        int imported = 0;
+        int skipped = 0;
+        int failed = 0;
+        for (Expense expense : expenses) {
+            try {
+                Expense duplicate = expenseRepository.findDuplicate(
+                    expense.getDate(),
+                    expense.getCategory(),
+                    expense.getSubCategory(),
+                    expense.getAmount(),
+                    expense.getDescription()
+                );
+                if (duplicate != null) {
+                    skipped++;
+                    continue;
+                }
+                expenseRepository.save(expense);
+                imported++;
+            } catch (Exception e) {
+                failed++;
+            }
+        }
+        return new ImportSummary(imported, skipped, failed);
+    }
+
+    public static class ImportSummary {
+        public int imported;
+        public int skipped;
+        public int failed;
+        public ImportSummary(int imported, int skipped, int failed) {
+            this.imported = imported;
+            this.skipped = skipped;
+            this.failed = failed;
+        }
     }
 
     // Get all expenses
@@ -68,17 +116,14 @@ public class ExpenseService {
         List<Expense> templates = getRecurringTemplates();
         LocalDate today = LocalDate.now();
         for (Expense template : templates) {
-            // Only generate if recurrenceEndDate is null or in the future
             if (template.getRecurrenceEndDate() != null && today.isAfter(template.getRecurrenceEndDate())) {
                 continue;
             }
-            // Find the last generated expense for this template
             LocalDate lastDate = template.getDate();
             List<Expense> generated = expenseRepository.findByParentExpenseId(template.getId());
             if (!generated.isEmpty()) {
                 lastDate = generated.stream().map(Expense::getDate).max(LocalDate::compareTo).orElse(lastDate);
             }
-            // Calculate next due date
             int interval = template.getRecurrenceInterval() != null ? template.getRecurrenceInterval() : 1;
             LocalDate nextDue = lastDate;
             switch (template.getRecurrenceType()) {
@@ -94,7 +139,6 @@ public class ExpenseService {
                 default:
                     nextDue = lastDate.plusMonths(interval);
             }
-            // If next due date is today or in the past, generate a new expense
             while (!nextDue.isAfter(today)) {
                 Expense newExpense = new Expense();
                 newExpense.setDate(nextDue);

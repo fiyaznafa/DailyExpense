@@ -1,11 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import DailyEntryPage from './pages/DailyEntryPage';
 import DashboardPage from './pages/DashboardPage';
 import ExpenseDetailPage from './pages/ExpenseDetailPage';
+import ChibiCatBot from './components/ChibiCatBot';
 import './App.css';
+import { getAllExpenses } from './api';
 
 function App() {
+  const [allExpenses, setAllExpenses] = useState([]);
+
+  useEffect(() => {
+    async function fetchExpenses() {
+      try {
+        const data = await getAllExpenses();
+        setAllExpenses(data);
+      } catch (e) {
+        setAllExpenses([]);
+      }
+    }
+    fetchExpenses();
+  }, []);
+
   return (
     <Router>
       <div className="App">
@@ -56,6 +72,7 @@ function App() {
             <Route path="/details/:type" element={<ExpenseDetailPage />} />
           </Routes>
         </main>
+        <ChibiCatBot expenses={allExpenses} />
       </div>
     </Router>
   );
